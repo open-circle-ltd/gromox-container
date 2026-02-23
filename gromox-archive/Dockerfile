@@ -42,7 +42,7 @@ RUN	curl https://download.grommunio.com/RPM-GPG-KEY-grommunio > gr.key && \
 	  zypper -n refresh grommunio
 
 RUN    zypper --non-interactive install -y vim mysql         \
-       php8-mysql php8-cli php8-openssl php-fpm grommunio-archive=${GROMOX_ARCHIVE_VERSION}  sphinx nginx jq firewalld cyrus-sasl-saslauthd cyrus-sasl-plain grommunio-common 
+       php8-mysql php8-cli php8-openssl php-fpm grommunio-archive=${GROMOX_ARCHIVE_VERSION}  sphinx nginx jq cyrus-sasl-saslauthd cyrus-sasl-plain grommunio-common 
 
     # Unmask services
 RUN    systemctl unmask                                                  \
@@ -62,12 +62,12 @@ RUN ln -nsf python3.11 /usr/bin/python3
 RUN    groupadd 'wheel' &&                         \
     useradd -m -s /bin/bash -G wheel admin && echo "admin:admin" | chpasswd
 
-COPY scripts /home/scripts
-COPY common /home/common
-COPY config /home/config
+COPY gromox-archive/scripts /home/scripts
+COPY gromox-archive/common /home/common
+COPY gromox-archive/config /home/config
 
-COPY scripts/entry.service /etc/systemd/system/entry.service
-COPY entrypoint.sh /home/entrypoint.sh
+COPY gromox-archive/scripts/entry.service /etc/systemd/system/entry.service
+COPY gromox-archive/entrypoint.sh /home/entrypoint.sh
 RUN chmod +x /home/entrypoint.sh
 
 RUN chmod +x /home/scripts/enable.sh

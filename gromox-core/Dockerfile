@@ -41,7 +41,7 @@ RUN	curl https://download.grommunio.com/RPM-GPG-KEY-grommunio > gr.key && \
 RUN    zypper --non-interactive install -y vim mysql        \
 	gromox grommunio-admin-api grommunio-admin-web grommunio-antispam \
 	grommunio-common grommunio-web grommunio-sync grommunio-dav postfix postfix-mysql \
-	grommunio-chat grommunio-keycloak grommunio-auth firewalld cyrus-sasl-saslauthd cyrus-sasl-plain jq redis
+	grommunio-chat grommunio-keycloak grommunio-auth cyrus-sasl-saslauthd cyrus-sasl-plain jq redis
 
 # Install Certbot & dependencies (Python 3.11)
 RUN    zypper -n install -y python311 python311-pip libopenssl-devel && \

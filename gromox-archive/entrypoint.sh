@@ -60,10 +60,10 @@ elif [ -d /etc/php7 ]; then
   fi
 fi
 
-systemctl enable firewalld.service >>"${LOGFILE}" 2>&1
-systemctl start firewalld.service >>"${LOGFILE}" 2>&1
+# systemctl enable firewalld.service >>"${LOGFILE}" 2>&1
+# systemctl start firewalld.service >>"${LOGFILE}" 2>&1
 
-. "/home/scripts/firewall.sh"
+# . "/home/scripts/firewall.sh"
 
 systemctl restart saslauthd.service >>"${LOGFILE}" 2>&1
 

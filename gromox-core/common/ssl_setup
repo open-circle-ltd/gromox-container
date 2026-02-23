@@ -47,14 +47,26 @@ owncert() {
 
 letsencrypt() {
 
-  systemctl start firewalld.service >>"${LOGFILE}" 2>&1
+  # systemctl start firewalld.service >>"${LOGFILE}" 2>&1
 
-  {
-    firewall-cmd --add-port=80/tcp --zone=public --permanent
-    firewall-cmd --add-service=https --zone=public --permanent
-    firewall-cmd --reload
-  } >>"${LOGFILE}" 2>&1
+  # {
+  #   firewall-cmd --add-port=80/tcp --zone=public --permanent
+  #   firewall-cmd --add-service=https --zone=public --permanent
+  #   firewall-cmd --reload
+  # } >>"${LOGFILE}" 2>&1
 
+  if [ -f "/etc/letsencrypt/live/${FQDN}/cert.pem" ] && [ -f "/etc/letsencrypt/live/${FQDN}/privkey.pem" ]; then
+      existing_domains=$(openssl x509 -in /etc/letsencrypt/live/${FQDN}/fullchain.pem -noout -text | \
+                        grep -oP '(?<=DNS:)[^,]*' | sort | tr '\n' ',' | sed 's/,$//')
+      desired_domains=$(echo "${SSL_DOMAINS}" | tr ' ' ',' | sed 's/,$//')
+
+      if [ "$existing_domains" = "$desired_domains" ]; then
+          echo "Existing certificate for ${FQDN} covers all domains. Skipping Certbot."
+          return 0
+      fi
+  fi
+
+  echo "No existing certificates found for ${FQDN}, running Certbot..."
   [ -e "/etc/nginx/conf.d/grommunio.conf" ] && mv "/etc/nginx/conf.d/grommunio.conf" "/etc/nginx/conf.d/grommunio.conf.grommunio-setup"
 
   systemctl stop nginx >>"${LOGFILE}" 2>&1

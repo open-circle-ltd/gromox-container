@@ -62,12 +62,12 @@ RUN ln -nsf python3.11 /usr/bin/python3
 RUN    groupadd 'wheel' &&                         \
     useradd -m -s /bin/bash -G wheel admin && echo "admin:admin" | chpasswd
 
-COPY scripts /home/scripts
-COPY common /home/common
-COPY config /home/config
+COPY gromox-archive/scripts /home/scripts
+COPY gromox-archive/common /home/common
+COPY gromox-archive/config /home/config
 
-COPY scripts/entry.service /etc/systemd/system/entry.service
-COPY entrypoint.sh /home/entrypoint.sh
+COPY gromox-archive/scripts/entry.service /etc/systemd/system/entry.service
+COPY gromox-archive/entrypoint.sh /home/entrypoint.sh
 RUN chmod +x /home/entrypoint.sh
 
 RUN chmod +x /home/scripts/enable.sh

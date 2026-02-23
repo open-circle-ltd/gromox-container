@@ -30,7 +30,7 @@ RUN zypper -n install -y \
         patterns-base-base \ 
         procps  \
         sudo       \
-        systemd 
+        systemd
 
 RUN	curl https://download.grommunio.com/RPM-GPG-KEY-grommunio > gr.key && \
 	  rpm --import gr.key && \
@@ -40,9 +40,13 @@ RUN	curl https://download.grommunio.com/RPM-GPG-KEY-grommunio > gr.key && \
 
 RUN    zypper --non-interactive install -y vim mysql        \
 	gromox grommunio-admin-api grommunio-admin-web grommunio-antispam \
-	grommunio-common grommunio-web grommunio-sync grommunio-dav postfix postfix-mysql \  
-	grommunio-chat firewalld cyrus-sasl-saslauthd cyrus-sasl-plain jq \
-	python3-certbot python3-certbot-nginx redis
+	grommunio-common grommunio-web grommunio-sync grommunio-dav postfix postfix-mysql \
+	grommunio-chat grommunio-keycloak grommunio-auth firewalld cyrus-sasl-saslauthd cyrus-sasl-plain jq redis
+
+# Install Certbot & dependencies (Python 3.11)
+RUN    zypper -n install -y python311 python311-pip libopenssl-devel && \
+        pip3.11 install --no-cache-dir certbot certbot-nginx && \
+        ln -sf /usr/local/bin/certbot /usr/bin/certbot
 
 	#grommunio-archive sphinx  docker openssh-server grommunio-office rabbitmq-server \ 
 

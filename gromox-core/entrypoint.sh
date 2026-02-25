@@ -245,11 +245,6 @@ postconf -P submission/inet/milter_macro_daemon_name=ORIGINATING
 systemctl enable postfix.service >>"${LOGFILE}" 2>&1
 systemctl restart postfix.service >>"${LOGFILE}" 2>&1
 
-# systemctl enable firewalld.service grommunio-fetchmail.timer >>"${LOGFILE}" 2>&1
-# systemctl start firewalld.service grommunio-fetchmail.timer >>"${LOGFILE}" 2>&1
-
-# . "/home/scripts/firewall.sh"
-
 systemctl restart redis@grommunio.service nginx.service php-fpm.service gromox-delivery.service \
   gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
   gromox-pop3.service gromox-delivery-queue.service gromox-timer.service gromox-zcore.service \
@@ -365,6 +360,34 @@ EOF
   jq '.archiveWebAddress |= "https://'${FQDN}'/archive"' /tmp/config.json > /tmp/config-new.json
   mv /tmp/config-new.json /tmp/config.json
 
+fi
+
+# Keycloak Configuration
+if [[ $ENABLE_KEYCLOAK = true ]] ; then
+  # Fetch bearer public key from Keycloak JWKS endpoint
+  JWKS_URL="${KEYCLOAK_URL}realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs"
+  JWKS_RESPONSE=$(curl -sf "${JWKS_URL}")
+  if [ -n "${JWKS_RESPONSE}" ]; then
+    echo "${JWKS_RESPONSE}" \
+      | jq -r '.keys[] | select(.alg=="RS256") | .x5c[0]' \
+      | base64 -d > /tmp/keycloak_cert.der
+    BEARER_PUBKEY=$(openssl x509 -inform DER -in /tmp/keycloak_cert.der -pubkey -noout 2>/dev/null)
+    rm -f /tmp/keycloak_cert.der
+  fi
+
+  if [ -z "${BEARER_PUBKEY}" ]; then
+    echo "WARNING: Could not fetch bearer public key from ${JWKS_URL}" >>"${LOGFILE}"
+  else
+    echo "${BEARER_PUBKEY}" > /etc/gromox/bearer_pubkey
+    chmod 644 /etc/gromox/bearer_pubkey
+  fi
+
+  # Write keycloak.json from template
+  export BEARER_PUBKEY
+  envsubst < /home/config/keycloak.json > /etc/grommox/keycloak.json
+
+  # Write OIDC client import config from template
+  envsubst < /home/config/oidc-import.json > /etc/gromox/oidc-import.json
 fi
 
 mv /tmp/config.json /etc/grommunio-admin-common/config.json

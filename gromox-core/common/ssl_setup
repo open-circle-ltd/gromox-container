@@ -46,15 +46,6 @@ owncert() {
 }
 
 letsencrypt() {
-
-  # systemctl start firewalld.service >>"${LOGFILE}" 2>&1
-
-  # {
-  #   firewall-cmd --add-port=80/tcp --zone=public --permanent
-  #   firewall-cmd --add-service=https --zone=public --permanent
-  #   firewall-cmd --reload
-  # } >>"${LOGFILE}" 2>&1
-
   if [ -f "/etc/letsencrypt/live/${FQDN}/cert.pem" ] && [ -f "/etc/letsencrypt/live/${FQDN}/privkey.pem" ]; then
       existing_domains=$(openssl x509 -in /etc/letsencrypt/live/${FQDN}/fullchain.pem -noout -text | \
                         grep -oP '(?<=DNS:)[^,]*' | sort | tr '\n' ',' | sed 's/,$//')

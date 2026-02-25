@@ -40,7 +40,15 @@ memory_check
 # shellcheck source=common/repo
 INSTALLVALUE="core, chat"
 
-X500="i$(printf "%llx" "$(date +%s)")"
+X500_FILE="/etc/gromox/.x500_org"
+if [ -n "${X500}" ]; then
+  echo "${X500}" > "${X500_FILE}"
+elif [ -f "${X500_FILE}" ]; then
+  X500="$(cat "${X500_FILE}")"
+else
+  X500="i$(printf "%llx" "$(date +%s)")"
+  echo "${X500}" > "${X500_FILE}"
+fi
 
 . "/home/common/ssl_setup"
 mkdir /etc/grommunio-common/ssl
@@ -144,22 +152,6 @@ cp /home/config/smtp /etc/pam.d/smtp
 
 echo "# Do not delete this file unless you know what you do!" > /etc/grommunio-common/setup_done
 
-# Set up autodiscover
-cp /home/config/autodiscover.ini /etc/gromox/autodiscover.ini 
-
-setconf /etc/gromox/autodiscover.ini host ${MYSQL_HOST} 
-setconf /etc/gromox/autodiscover.ini username ${MYSQL_USER}
-setconf /etc/gromox/autodiscover.ini password ${MYSQL_PASS}
-setconf /etc/gromox/autodiscover.ini dbname ${MYSQL_DB}
-
-setconf /etc/gromox/autodiscover.ini organization ${ORGANIZATION}
-#setconf /etc/gromox/autodiscover.ini hostname ${FQDN}
-setconf /etc/gromox/autodiscover.ini mapihttp 1
-
-setconf /etc/gromox/autodiscover.ini timezone ${TIMEZONE}
-setconf /etc/gromox/autodiscover.ini /var/lib/gromox/user ${HTTP_PROXY_USER}
-setconf /etc/gromox/autodiscover.ini /var/lib/gromox/domain ${HTTP_PROXY_DOMAIN}
-
 # Set up http.cfg
 setconf /etc/gromox/http.cfg listen_port 10080
 setconf /etc/gromox/http.cfg http_support_ssl true
@@ -192,11 +184,14 @@ chown gromox:gromox /etc/grommunio-common/ssl/*
 # Make the folder writable for grodav
 chown grodav:grodav /var/lib/grommunio-dav
 
+# Create gromox.cfg
+touch /etc/gromox/gromox.cfg
+
 # Domain and X500
 for SERVICE in http midb zcore imap pop3 smtp delivery ; do
   setconf /etc/gromox/${SERVICE}.cfg default_domain "${DOMAIN}"
 done
-for CFG in autodiscover.cfg midb.cfg zcore.cfg exmdb_local.cfg exmdb_provider.cfg exchange_emsmdb.cfg exchange_nsp.cfg ; do
+for CFG in gromox.cfg autodiscover.cfg midb.cfg zcore.cfg exmdb_local.cfg exmdb_provider.cfg exchange_emsmdb.cfg exchange_nsp.cfg ; do
   setconf "/etc/gromox/${CFG}" x500_org_name "${X500}"
 done
 

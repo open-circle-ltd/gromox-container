@@ -384,7 +384,7 @@ if [[ $ENABLE_KEYCLOAK = true ]] ; then
 
   # Write keycloak.json from template
   export BEARER_PUBKEY
-  envsubst < /home/config/keycloak.json > /etc/grommox/keycloak.json
+  envsubst < /home/config/keycloak.json > /etc/gromox/keycloak.json
 
   # Write OIDC client import config from template
   envsubst < /home/config/oidc-import.json > /etc/gromox/oidc-import.json

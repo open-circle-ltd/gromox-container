@@ -38,7 +38,15 @@ memory_check
 # Set repository credentials directly
 INSTALLVALUE="archive"
 
-X500="i$(printf "%llx" "$(date +%s)")"
+X500_FILE="/etc/gromox/.x500_org"
+if [ -n "${X500}" ]; then
+  echo "${X500}" > "${X500_FILE}"
+elif [ -f "${X500_FILE}" ]; then
+  X500="$(cat "${X500_FILE}")"
+else
+  X500="i$(printf "%llx" "$(date +%s)")"
+  echo "${X500}" > "${X500_FILE}"
+fi
 
 . "/home/common/ssl_setup"
 RETCMD=1

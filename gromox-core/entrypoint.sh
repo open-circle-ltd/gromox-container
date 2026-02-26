@@ -382,18 +382,41 @@ if [[ $ENABLE_KEYCLOAK = true ]] ; then
     chmod 644 /etc/gromox/bearer_pubkey
   fi
 
-  # Write keycloak.json from template
-  export BEARER_PUBKEY
-  envsubst < /home/config/keycloak.json > /etc/gromox/keycloak.json
-
-  # Write OIDC client import config from template
-  envsubst < /home/config/oidc-import.json > /etc/gromox/oidc-import.json
 fi
 
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl stop grommunio-chat.service
 systemctl restart grommunio-admin-api.service nginx.service
 systemctl restart grommunio-chat.service
+
+if [[ $ENABLE_KEYCLOAK = true ]] ; then
+  PUBKEY_CLEAN=$(echo "${BEARER_PUBKEY}" | tr -d '\n')
+  jq -n \
+    --arg realm "${KEYCLOAK_REALM}" \
+    --arg url "${KEYCLOAK_URL}" \
+    --arg client "${KEYCLOAK_CLIENT_ID}" \
+    --arg secret "${KEYCLOAK_CLIENT_SECRET}" \
+    --arg pubkey "${PUBKEY_CLEAN}" \
+    '{
+      "realm": $realm,
+      "auth-server-url": $url,
+      "resource": $client,
+      "credentials": { "secret": $secret },
+      "confidential-port": 0,
+      "realm-public-key": $pubkey
+    }' > /etc/gromox/keycloak.json
+
+  jq --arg client "${KEYCLOAK_CLIENT_ID}" --arg fqdn "${FQDN}" \
+    '(.clientId, .name) = $client |
+     .description = "Client for \($client) SSO" |
+     .rootUrl = "https://\($fqdn):443/" |
+     .adminUrl = "https://\($fqdn):443/" |
+     .baseUrl = "https://\($fqdn):443/" |
+     .redirectUris = ["https://\($fqdn)/*", "https://\($fqdn)/web/*"] |  
+     .webOrigins = ["https://\($fqdn):443/"] |
+     .attributes["post.logout.redirect.uris"] = "https://\($fqdn)/"' \
+    /home/config/oidc-import.json > /etc/gromox/oidc-import.json
+fi
 setup_done
 
 exit 0

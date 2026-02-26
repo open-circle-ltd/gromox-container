@@ -18,9 +18,6 @@ FROM opensuse/leap:15.6
 
 ARG GROMMUNIO_REPO=openSUSE_Leap_15.6
 
-# Grommunio package versions
-ARG GROMOX_ARCHIVE_VERSION=1.3.13.g137.d1b0df1b-lp156.9.153
-
 #
 # Systemd installation
 #
@@ -42,7 +39,7 @@ RUN	curl https://download.grommunio.com/RPM-GPG-KEY-grommunio > gr.key && \
 	  zypper -n refresh grommunio
 
 RUN    zypper --non-interactive install -y vim mysql         \
-       php8-mysql php8-cli php8-openssl php-fpm grommunio-archive=${GROMOX_ARCHIVE_VERSION}  sphinx nginx jq cyrus-sasl-saslauthd cyrus-sasl-plain grommunio-common 
+       php8-mysql php8-cli php8-openssl php-fpm grommunio-archive sphinx nginx jq cyrus-sasl-saslauthd cyrus-sasl-plain grommunio-common 
 
     # Unmask services
 RUN    systemctl unmask                                                  \

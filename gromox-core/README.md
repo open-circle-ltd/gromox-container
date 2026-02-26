@@ -2,8 +2,6 @@
 
 Docker image for [grommunio](https://grommunio.com/) groupware, based on openSUSE Leap 15.6 with systemd. This image packages the full grommunio stack into a single system container.
 
-Version: v1.0.6
-
 ## Included Services
 
 - **Gromox** - Mail transport (IMAP, POP3, SMTP, HTTP/MAPI)
@@ -17,11 +15,6 @@ Version: v1.0.6
 - **Grommunio Auth** - Authentication
 - **Postfix** - MTA for inbound/outbound email
 - **Certbot** - Automated TLS certificate management
-
-## Prerequisites
-
-- Docker with [Sysbox](https://github.com/nestybox/sysbox) runtime (required for systemd inside the container)
-- An external MySQL/MariaDB database
 
 ## Usage
 
@@ -87,6 +80,16 @@ Both services read their configuration from the environment file mounted at `/ho
 | `ENABLE_ARCHIVE` | Set to `true` to enable grommunio Archive proxy |
 | `OFFICE_HOST` | Hostname of the grommunio Office/Files server |
 | `ARCHIVE_HOST` | Hostname of the grommunio Archive server |
+
+### Keycloak
+
+| Variable | Description |
+|---|---|
+| `ENABLE_KEYCLOAK` | Set to `true` to enable Keycloak identity provider. Generates OIDC import config for Keycloak in `/etc/gromox` |
+| `KEYCLOAK_REALM` | Keycloak realm name |
+| `KEYCLOAK_URL` | URL of the Keycloak server |
+| `KEYCLOAK_CLIENT_ID` | OAuth client ID for grommunio in Keycloak |
+| `KEYCLOAK_CLIENT_SECRET` | OAuth client secret for grommunio in Keycloak |
 
 ## Project Structure
 

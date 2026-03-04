@@ -38,7 +38,15 @@ memory_check
 # Set repository credentials directly
 INSTALLVALUE="archive"
 
-X500="i$(printf "%llx" "$(date +%s)")"
+X500_FILE="/etc/gromox/.x500_org"
+if [ -n "${X500}" ]; then
+  echo "${X500}" > "${X500_FILE}"
+elif [ -f "${X500_FILE}" ]; then
+  X500="$(cat "${X500_FILE}")"
+else
+  X500="i$(printf "%llx" "$(date +%s)")"
+  echo "${X500}" > "${X500_FILE}"
+fi
 
 . "/home/common/ssl_setup"
 RETCMD=1
@@ -59,11 +67,6 @@ elif [ -d /etc/php7 ]; then
     mv /etc/php7/fpm/php-fpm.conf.default /etc/php7/fpm/php-fpm.conf
   fi
 fi
-
-systemctl enable firewalld.service >>"${LOGFILE}" 2>&1
-systemctl start firewalld.service >>"${LOGFILE}" 2>&1
-
-. "/home/scripts/firewall.sh"
 
 systemctl restart saslauthd.service >>"${LOGFILE}" 2>&1
 

@@ -16,10 +16,14 @@ The container use a [OpenSuse Leap 15.6 base](https://hub.docker.com/r/opensuse/
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-    - [Persistent Volumes](#persistent-volumes)
+- [Grommunio Containers](#grommunio-containers)
+  - [About](#about)
+  - [Maintainer](#maintainer)
+  - [Table of Contents](#table-of-contents)
+  - [Quick Start](#quick-start)
+  - [Configuration](#configuration)
     - [Environment Variables](#environment-variables)
+  - [Caveats](#caveats)
 
 ## Quick Start
 

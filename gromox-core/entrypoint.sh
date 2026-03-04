@@ -40,7 +40,15 @@ memory_check
 # shellcheck source=common/repo
 INSTALLVALUE="core, chat"
 
-X500="i$(printf "%llx" "$(date +%s)")"
+X500_FILE="/etc/gromox/.x500_org"
+if [ -n "${X500}" ]; then
+  echo "${X500}" > "${X500_FILE}"
+elif [ -f "${X500_FILE}" ]; then
+  X500="$(cat "${X500_FILE}")"
+else
+  X500="i$(printf "%llx" "$(date +%s)")"
+  echo "${X500}" > "${X500_FILE}"
+fi
 
 . "/home/common/ssl_setup"
 mkdir /etc/grommunio-common/ssl
@@ -53,10 +61,14 @@ if [ "${SSL_INSTALL_TYPE}" = "0" ]; then
 elif [ "${SSL_INSTALL_TYPE}" = "2" ]; then
   #choose_ssl_letsencrypt
   #this should containe the domain to signed by certbot
-  SSL_DOMAINS=$FQDN
+  SSL_DOMAINS="$FQDN,autodiscover.$DOMAIN"
+
+if [ -n "$MAIL_DOMAINS" ]; then
+  SSL_DOMAINS="$SSL_DOMAINS,autodiscover.$DOMAIN,$MAIL_DOMAINS"
+fi
 
   #This should contain the email
-  SSL_EMAIL=email@$FQDN
+  SSL_EMAIL=admin@$FQDN
   letsencrypt
 fi
 
@@ -140,22 +152,6 @@ cp /home/config/smtp /etc/pam.d/smtp
 
 echo "# Do not delete this file unless you know what you do!" > /etc/grommunio-common/setup_done
 
-# Set up autodiscover
-cp /home/config/autodiscover.ini /etc/gromox/autodiscover.ini 
-
-setconf /etc/gromox/autodiscover.ini host ${MYSQL_HOST} 
-setconf /etc/gromox/autodiscover.ini username ${MYSQL_USER}
-setconf /etc/gromox/autodiscover.ini password ${MYSQL_PASS}
-setconf /etc/gromox/autodiscover.ini dbname ${MYSQL_DB}
-
-setconf /etc/gromox/autodiscover.ini organization ${ORGANIZATION}
-#setconf /etc/gromox/autodiscover.ini hostname ${FQDN}
-setconf /etc/gromox/autodiscover.ini mapihttp 1
-
-setconf /etc/gromox/autodiscover.ini timezone ${TIMEZONE}
-setconf /etc/gromox/autodiscover.ini /var/lib/gromox/user ${HTTP_PROXY_USER}
-setconf /etc/gromox/autodiscover.ini /var/lib/gromox/domain ${HTTP_PROXY_DOMAIN}
-
 # Set up http.cfg
 setconf /etc/gromox/http.cfg listen_port 10080
 setconf /etc/gromox/http.cfg http_support_ssl true
@@ -188,11 +184,14 @@ chown gromox:gromox /etc/grommunio-common/ssl/*
 # Make the folder writable for grodav
 chown grodav:grodav /var/lib/grommunio-dav
 
+# Create gromox.cfg
+touch /etc/gromox/gromox.cfg
+
 # Domain and X500
 for SERVICE in http midb zcore imap pop3 smtp delivery ; do
   setconf /etc/gromox/${SERVICE}.cfg default_domain "${DOMAIN}"
 done
-for CFG in midb.cfg zcore.cfg exmdb_local.cfg exmdb_provider.cfg exchange_emsmdb.cfg exchange_nsp.cfg ; do
+for CFG in gromox.cfg autodiscover.cfg midb.cfg zcore.cfg exmdb_local.cfg exmdb_provider.cfg exchange_emsmdb.cfg exchange_nsp.cfg ; do
   setconf "/etc/gromox/${CFG}" x500_org_name "${X500}"
 done
 
@@ -245,11 +244,6 @@ postconf -P submission/inet/milter_macro_daemon_name=ORIGINATING
 
 systemctl enable postfix.service >>"${LOGFILE}" 2>&1
 systemctl restart postfix.service >>"${LOGFILE}" 2>&1
-
-systemctl enable firewalld.service grommunio-fetchmail.timer >>"${LOGFILE}" 2>&1
-systemctl start firewalld.service grommunio-fetchmail.timer >>"${LOGFILE}" 2>&1
-
-. "/home/scripts/firewall.sh"
 
 systemctl restart redis@grommunio.service nginx.service php-fpm.service gromox-delivery.service \
   gromox-event.service gromox-http.service gromox-imap.service gromox-midb.service \
@@ -368,10 +362,61 @@ EOF
 
 fi
 
+# Keycloak Configuration
+if [[ $ENABLE_KEYCLOAK = true ]] ; then
+  # Fetch bearer public key from Keycloak JWKS endpoint
+  JWKS_URL="${KEYCLOAK_URL}realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs"
+  JWKS_RESPONSE=$(curl -sf "${JWKS_URL}")
+  if [ -n "${JWKS_RESPONSE}" ]; then
+    echo "${JWKS_RESPONSE}" \
+      | jq -r '.keys[] | select(.alg=="RS256") | .x5c[0]' \
+      | base64 -d > /tmp/keycloak_cert.der
+    BEARER_PUBKEY=$(openssl x509 -inform DER -in /tmp/keycloak_cert.der -pubkey -noout 2>/dev/null)
+    rm -f /tmp/keycloak_cert.der
+  fi
+
+  if [ -z "${BEARER_PUBKEY}" ]; then
+    echo "WARNING: Could not fetch bearer public key from ${JWKS_URL}" >>"${LOGFILE}"
+  else
+    echo "${BEARER_PUBKEY}" > /etc/gromox/bearer_pubkey
+    chmod 644 /etc/gromox/bearer_pubkey
+  fi
+
+fi
+
 mv /tmp/config.json /etc/grommunio-admin-common/config.json
 systemctl stop grommunio-chat.service
 systemctl restart grommunio-admin-api.service nginx.service
 systemctl restart grommunio-chat.service
+
+if [[ $ENABLE_KEYCLOAK = true ]] ; then
+  PUBKEY_CLEAN=$(echo "${BEARER_PUBKEY}" | tr -d '\n')
+  jq -n \
+    --arg realm "${KEYCLOAK_REALM}" \
+    --arg url "${KEYCLOAK_URL}" \
+    --arg client "${KEYCLOAK_CLIENT_ID}" \
+    --arg secret "${KEYCLOAK_CLIENT_SECRET}" \
+    --arg pubkey "${PUBKEY_CLEAN}" \
+    '{
+      "realm": $realm,
+      "auth-server-url": $url,
+      "resource": $client,
+      "credentials": { "secret": $secret },
+      "confidential-port": 0,
+      "realm-public-key": $pubkey
+    }' > /etc/gromox/keycloak.json
+
+  jq --arg client "${KEYCLOAK_CLIENT_ID}" --arg fqdn "${FQDN}" \
+    '(.clientId, .name) = $client |
+     .description = "Client for \($client) SSO" |
+     .rootUrl = "https://\($fqdn):443/" |
+     .adminUrl = "https://\($fqdn):443/" |
+     .baseUrl = "https://\($fqdn):443/" |
+     .redirectUris = ["https://\($fqdn)/*", "https://\($fqdn)/web/*"] |  
+     .webOrigins = ["https://\($fqdn):443/"] |
+     .attributes["post.logout.redirect.uris"] = "https://\($fqdn)/"' \
+    /home/config/oidc-import.json > /etc/gromox/oidc-import.json
+fi
 setup_done
 
 exit 0
